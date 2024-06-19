@@ -63,16 +63,20 @@ sun_trail = ax.plot([], [], '-', color='yellow', linewidth=1)[0]
 # Change marker size and color per planet
 planets = {planet: ax.plot([], [], 'o', label=planet)[0] for planet in orbital_radii}
 trails = {planet: ax.plot([], [], '-', linewidth=1)[0] for planet in orbital_radii}
-trail_length = 200  # length of the trail
+trail_length = 200  # length of the trails
 
+# Three visualizations below
+
+# Standard Solar System
 def update(frame):
     for planet in orbital_radii:
         planets[planet].set_data(positions[planet][frame, 0], positions[planet][frame, 1])
-        start = max(0, frame - trail_length)
-        trails[planet].set_data(positions[planet][start:frame, 0], positions[planet][start:frame, 1])
+        trail_start = max(0, frame - trail_length)
+        trails[planet].set_data(positions[planet][trail_start:frame, 0], positions[planet][trail_start:frame, 1])
     return list(planets.values()) + list(trails.values())
 
-def update_geocentric(frame):
+# Earth centered Solar System
+def update_earth_centered(frame):
     # Calculate the shift needed to center on Earth's position
     shift_x, shift_y = -positions['Earth'][frame, 0], -positions['Earth'][frame, 1]
     sun.set_data(shift_x, shift_y)  # Move Sun to stay centered relative to Earth
@@ -83,18 +87,17 @@ def update_geocentric(frame):
         centered_y = positions[planet][frame, 1] + shift_y
         planets[planet].set_data(centered_x, centered_y)
 
-        start = max(0, frame - trail_length)
-        trail_x = positions[planet][start:frame, 0] + shift_x
-        trail_y = positions[planet][start:frame, 1] + shift_y
+        trail_start = max(0, frame - trail_length)
+        trail_x = positions[planet][trail_start:frame, 0] + shift_x
+        trail_y = positions[planet][trail_start:frame, 1] + shift_y
         trails[planet].set_data(trail_x, trail_y)
 
     return [sun] + list(planets.values()) + list(trails.values())
 
+# Ptolemaic model of the Solar System
 def update_ptolemaic(frame):
-    # Earth is stationary, we only update its trail for visual consistency
-    earth_x, earth_y = 0, 0
-    planets['Earth'].set_data(earth_x, earth_y)
-    trails['Earth'].set_data([earth_x] * frame, [earth_y] * frame)
+    # Make the Earth stationary at the origin
+    planets['Earth'].set_data(0, 0)
 
     for planet in orbital_radii:
         if planet == 'Earth':
@@ -105,9 +108,9 @@ def update_ptolemaic(frame):
         planets[planet].set_data(relative_x, relative_y)
 
         # Update trails relative to Earth
-        start = max(0, frame - trail_length)
-        trail_x = positions[planet][start:frame, 0] - positions['Earth'][start:frame, 0]
-        trail_y = positions[planet][start:frame, 1] - positions['Earth'][start:frame, 1]
+        trail_start = max(0, frame - trail_length)
+        trail_x = positions[planet][trail_start:frame, 0] - positions['Earth'][trail_start:frame, 0]
+        trail_y = positions[planet][trail_start:frame, 1] - positions['Earth'][trail_start:frame, 1]
         trails[planet].set_data(trail_x, trail_y)
 
     # Adjust the Sun's position relative to Earth
@@ -115,15 +118,16 @@ def update_ptolemaic(frame):
     sun_y = -positions['Earth'][frame, 1]
     sun.set_data(sun_x, sun_y)
 
-    start_sun = max(0, frame - trail_length)
-    trail_sun_x = -positions['Earth'][start_sun:frame, 0]
-    trail_sun_y = -positions['Earth'][start_sun:frame, 1]
+    trail_start_sun = max(0, frame - trail_length)
+    trail_sun_x = -positions['Earth'][trail_start_sun:frame, 0]
+    trail_sun_y = -positions['Earth'][trail_start_sun:frame, 1]
     sun_trail.set_data(trail_sun_x, trail_sun_y)
 
     return [sun, sun_trail] + list(planets.values()) + list(trails.values())
 
+# Animations
 # ani = FuncAnimation(fig, update, frames=len(time), blit=True, interval=50)
-# ani = FuncAnimation(fig, update_geocentric, frames=len(time), blit=True, interval=50)
+# ani = FuncAnimation(fig, update_earth_centered, frames=len(time), blit=True, interval=50)
 ani = FuncAnimation(fig, update_ptolemaic, frames=len(time), blit=True, interval=50)
 
 plt.legend()
