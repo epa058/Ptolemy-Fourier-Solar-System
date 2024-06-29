@@ -2,8 +2,41 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
+# Planet names
+names = ['Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto']
+
+# Diameter for the planets and the Moon in astronomical units
+# Source: https://nssdc.gsfc.nasa.gov/planetary/factsheet/planet_table_ratio.html
+diameters = {
+    'Mercury': 0.383,
+    'Venus': 0.949,
+    'Earth': 1.00,
+    'Moon': 0.2724,  # relative to Earth
+    'Mars': 0.532,
+    'Jupiter': 11.21,
+    'Saturn': 9.45,
+    'Uranus': 4.01,
+    'Neptune': 3.88,
+    'Pluto': 0.187
+}
+
+# Diameter for the planets and the Moon in 10x astronomical units
+# Source: Intuition, colors have been exaggerated
+colors = {
+    'Mercury': 'dimgrey',
+    'Venus': 'orange',
+    'Earth':  'blue',
+    'Moon':  'grey',
+    'Mars':  'red',
+    'Jupiter': 'sandybrown',
+    'Saturn': 'wheat',
+    'Uranus': 'paleturquoise',
+    'Neptune': 'dodgerblue',
+    'Pluto': 'tan'
+}
+
 # Orbital radii for the planets and the Moon in astronomical units
-# https://nssdc.gsfc.nasa.gov/planetary/factsheet/planet_table_ratio.html
+# Source: https://nssdc.gsfc.nasa.gov/planetary/factsheet/planet_table_ratio.html
 orbital_radii = {
     'Mercury': 0.387,
     'Venus': 0.723,
@@ -18,7 +51,7 @@ orbital_radii = {
 }
 
 # Orbital period for the planets and the Moon in Earth years
-# https://nssdc.gsfc.nasa.gov/planetary/factsheet/planet_table_ratio.html
+# Source: https://nssdc.gsfc.nasa.gov/planetary/factsheet/planet_table_ratio.html
 orbital_periods = {
     'Mercury': 0.241,
     'Venus': 0.615,
@@ -34,15 +67,15 @@ orbital_periods = {
 
 # Animation duration of 'D' Earth years
 D = 2
-time = np.linspace(0, D, 500)
+time = np.linspace(0, D, 365*D)
 
 # Array of positions
 positions = {}
-for planet in orbital_radii:
+for planet in names:
     positions[planet] = np.zeros((len(time), 2))
 
 # Calculate positions assuming circular orbits
-for planet in orbital_radii:
+for planet in names:
     angle = 2 * np.pi * time / orbital_periods[planet]
     positions[planet][:, 0] = orbital_radii[planet] * np.cos(angle)  # x-coordinate
     positions[planet][:, 1] = orbital_radii[planet] * np.sin(angle)  # y-coordinate
@@ -53,35 +86,40 @@ positions['Moon'] += positions['Earth']
 # Plot setup
 fig, ax = plt.subplots()
 ax.set_aspect('equal', 'box')
+ax.set_facecolor("black")
 lim = 15 # I only want to visualize up to Saturn, the rest was for fun
 ax.set_xlim(-lim, lim)
 ax.set_ylim(-lim, lim)
 
 # Aesthetics
-sun = ax.plot(0, 0, 'o', color='yellow', markersize=10, label='Sun')[0] 
-sun_trail = ax.plot([], [], '-', color='yellow', linewidth=1)[0]
-# Change marker size and color per planet
-planets = {planet: ax.plot([], [], 'o', label=planet)[0] for planet in orbital_radii}
-trails = {planet: ax.plot([], [], '-', linewidth=1)[0] for planet in orbital_radii}
 trail_length = 200  # length of the trails
+
+sun = ax.plot(0, 0, 'o', color='yellow', markersize=10, label='Sun')[0] # Sun size is 10x smaller
+sun_trail = ax.plot([], [], '-', color='yellow', linewidth=1)[0]
+
+planets = {}
+trails = {}
+for planet, color in colors.items():
+    planets[planet] = ax.plot([], [], 'o', color=color, markersize=2, label=planet)[0]
+    trails[planet] = ax.plot([], [], '-', linewidth=1, color=color)[0]
 
 # Three visualizations below
 
 # Standard Solar System
 def update(frame):
-    for planet in orbital_radii:
+    for planet in names:
         planets[planet].set_data(positions[planet][frame, 0], positions[planet][frame, 1])
         trail_start = max(0, frame - trail_length)
         trails[planet].set_data(positions[planet][trail_start:frame, 0], positions[planet][trail_start:frame, 1])
     return list(planets.values()) + list(trails.values())
 
-# Earth centered Solar System
+# Earth-centered Solar System
 def update_earth_centered(frame):
     # Calculate the shift needed to center on Earth's position
     shift_x, shift_y = -positions['Earth'][frame, 0], -positions['Earth'][frame, 1]
     sun.set_data(shift_x, shift_y)  # Move Sun to stay centered relative to Earth
 
-    for planet in orbital_radii:
+    for planet in names:
         # Adjust positions relative to Earth's current position
         centered_x = positions[planet][frame, 0] + shift_x
         centered_y = positions[planet][frame, 1] + shift_y
@@ -99,7 +137,7 @@ def update_ptolemaic(frame):
     # Make the Earth stationary at the origin
     planets['Earth'].set_data(0, 0)
 
-    for planet in orbital_radii:
+    for planet in names:
         if planet == 'Earth':
             continue
         # Calculate relative positions to the Earth
