@@ -167,6 +167,22 @@ def update_ptolemaic(frame):
 # ani = FuncAnimation(fig, update, frames=len(time), blit=True, interval=50)
 # ani = FuncAnimation(fig, update_earth_centered, frames=len(time), blit=True, interval=50)
 ani = FuncAnimation(fig, update_ptolemaic, frames=len(time), blit=True, interval=50)
+
+# Relative positions with Earth as origin
+relative_positions = {}
+relative_positions['Sun'] = - positions['Earth']
+for planet in names:
+    relative_positions[planet] = positions[planet] - positions['Earth']
+
+# File writing
+file = open('planetary_positions.txt', 'w')
+for planet, positions in relative_positions.items():
+    file.write(f"{planet} positions:\n")
+    for position in positions:
+        file.write(f"{position[0]}, {position[1]}\n")
+    file.write("\n")  # Add a newline for separation
+
+print("Data has been written to 'planetary_positions.txt'")
     
 plt.legend()
 plt.show()
