@@ -167,6 +167,6 @@ def update_ptolemaic(frame):
 # ani = FuncAnimation(fig, update, frames=len(time), blit=True, interval=50)
 # ani = FuncAnimation(fig, update_earth_centered, frames=len(time), blit=True, interval=50)
 ani = FuncAnimation(fig, update_ptolemaic, frames=len(time), blit=True, interval=50)
-
+    
 plt.legend()
 plt.show()
