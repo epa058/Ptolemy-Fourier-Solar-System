@@ -135,7 +135,7 @@ def update_earth_centered(frame):
 # Ptolemaic model of the Solar System
 def update_ptolemaic(frame):
     # Make the Earth stationary at the origin
-    planets['Earth'].set_data(0, 0)
+    planets['Earth'].set_data([0], [0])
 
     for planet in names:
         if planet == 'Earth':
@@ -143,23 +143,23 @@ def update_ptolemaic(frame):
         # Calculate relative positions to the Earth
         relative_x = positions[planet][frame, 0] - positions['Earth'][frame, 0]
         relative_y = positions[planet][frame, 1] - positions['Earth'][frame, 1]
-        planets[planet].set_data(relative_x, relative_y)
+        planets[planet].set_data([relative_x], [relative_y])
 
         # Update trails relative to Earth
         trail_start = max(0, frame - trail_length)
         trail_x = positions[planet][trail_start:frame, 0] - positions['Earth'][trail_start:frame, 0]
         trail_y = positions[planet][trail_start:frame, 1] - positions['Earth'][trail_start:frame, 1]
-        trails[planet].set_data(trail_x, trail_y)
+        trails[planet].set_data([trail_x], [trail_y])
 
     # Adjust the Sun's position relative to Earth
     sun_x = -positions['Earth'][frame, 0]
     sun_y = -positions['Earth'][frame, 1]
-    sun.set_data(sun_x, sun_y)
+    sun.set_data([sun_x], [sun_y])
 
     trail_start_sun = max(0, frame - trail_length)
     trail_sun_x = -positions['Earth'][trail_start_sun:frame, 0]
     trail_sun_y = -positions['Earth'][trail_start_sun:frame, 1]
-    sun_trail.set_data(trail_sun_x, trail_sun_y)
+    sun_trail.set_data([trail_sun_x], [trail_sun_y])
 
     return [sun, sun_trail] + list(planets.values()) + list(trails.values())
 
@@ -168,6 +168,8 @@ def update_ptolemaic(frame):
 # ani = FuncAnimation(fig, update_earth_centered, frames=len(time), blit=True, interval=50)
 ani = FuncAnimation(fig, update_ptolemaic, frames=len(time), blit=True, interval=50)
 
+
+### Irrelevant
 # Relative positions with Earth as origin
 relative_positions = {}
 relative_positions['Sun'] = - positions['Earth']
@@ -176,13 +178,13 @@ for planet in names:
 
 # File writing
 file = open('planetary_positions.txt', 'w')
-for planet, positions in relative_positions.items():
+for planet, pos in relative_positions.items():
     file.write(f"{planet} positions:\n")
-    for position in positions:
+    for position in pos:
         file.write(f"{position[0]}, {position[1]}\n")
-    file.write("\n")  # Add a newline for separation
 
 print("Data has been written to 'planetary_positions.txt'")
-    
+
+
 plt.legend()
 plt.show()
