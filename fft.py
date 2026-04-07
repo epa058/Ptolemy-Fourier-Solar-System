@@ -1,0 +1,175 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from scipy.signal import find_peaks
+
+# File reading
+planet_positions = {}
+current_planet = None
+
+with open("kepler_planetary_positions.txt", "r") as f:
+    for line in f:
+        if "positions" in line:
+            current_planet = line.split()[0] # name
+            planet_positions[current_planet] = []
+        else:
+            coords = line.strip().split(',')
+            if len(coords) == 2:
+                x, y = float(coords[0]), float(coords[1])
+                planet_positions[current_planet].append((x, y)) # coordinates
+
+# User input
+max_epicycles = int(input("How many epicycles?: "))
+
+# Fast Fourier Transform
+def fft_epicycles(coords, max_n, pad_factor=8, overlap_bins=50):
+    # Map coordinates to complex plane
+    z = np.array([x + 1j * y for x, y in coords])
+    N = len(z)
+    bandwidth = 1.0 / N
+    overlap_threshold = overlap_bins * bandwidth
+
+    # Zero-pad and FFT
+    Z = np.fft.fft(z, n=N * pad_factor)
+    freqs = np.fft.fftfreq(N * pad_factor)
+    amplitudes = np.abs(Z / N)  # normalise by original N
+
+    # Positive frequencies only
+    pos_mask = (freqs > 0)
+    freqs_pos = freqs[pos_mask]
+    amps_pos  = amplitudes[pos_mask]
+    Z_pos     = Z[pos_mask]
+
+    # Find peaks
+    min_amp = np.max(amps_pos) * 0.01  # only picks local maxima above 1% of tallest peak
+    peak_indices, _ = find_peaks(amps_pos, height=min_amp)
+    peak_indices = peak_indices[np.argsort(amps_pos[peak_indices])[::-1]]
+
+    # Discard sidelobe peaks (within overlap_threshold of a taller kept peak)
+    kept_indices = []
+    kept_freqs   = []
+    for idx in peak_indices:
+        f0 = freqs_pos[idx]
+        too_close = any(abs(f0 - kf) < overlap_threshold for kf in kept_freqs)
+        if not too_close:
+            kept_indices.append(idx)
+            kept_freqs.append(f0)
+        if len(kept_indices) == max_n:
+            break
+
+    # Reconstruct
+    t = np.arange(N)
+    z_fit = np.full(N, Z[0] / N, dtype=complex)
+
+    selected_freqs = []
+    selected_amps  = []
+    for idx in kept_indices:
+        f0    = freqs_pos[idx]
+        coeff = Z_pos[idx] / N
+        z_fit += coeff * np.exp(2j * np.pi * f0 * t)
+        selected_freqs.append(f0)
+        selected_amps.append(np.abs(coeff))
+
+    return {
+        "spectrum":       (freqs_pos, amps_pos),
+        "selected":       (np.array(selected_freqs), np.array(selected_amps)),
+        "reconstruction": (z_fit.real, z_fit.imag),
+        "n_found":        len(kept_indices)
+    }
+
+fitted_planet_positions = {}
+
+# Individual planet plots
+for planet, coords in planet_positions.items():
+    x_obs = np.array([c[0] for c in coords])
+    y_obs = np.array([c[1] for c in coords])
+
+    res = fft_epicycles(coords, max_epicycles)
+    freqs_pos, amps_pos = res["spectrum"]
+    selected_freqs, selected_amps = res["selected"]
+    x_fit, y_fit = res["reconstruction"]
+    n_used = res["n_found"]
+
+    fitted_planet_positions[planet] = (x_fit, y_fit)
+
+    # Create figure
+    fig, (ax_spec, ax_fit) = plt.subplots(1, 2, figsize=(14, 6))
+    fig.suptitle(f'{planet}: FFT Spectrum & Epicycle Fit '
+                 f'({n_used} of {max_epicycles} epicycles kept)')
+
+    # 1) Spectrum
+    ax_spec.plot(freqs_pos, amps_pos, color='blue', linewidth=1, label='Spectrum')
+
+    for i, (f0, A) in enumerate(zip(selected_freqs, selected_amps)):
+        ax_spec.axvline(f0, color='red', linewidth=1.5, linestyle='-', alpha=0.8,
+                        label='Kept peaks' if i == 0 else None)
+        ax_spec.plot(f0, A, marker='o', color='darkred', markersize=6)
+
+    ax_spec.set_title('Frequency Spectrum')
+    ax_spec.set_xlabel('Frequency (cycles / timestep)')
+    ax_spec.set_ylabel('Amplitude (AU)')
+    ax_spec.legend(fontsize=8)
+    ax_spec.grid(True, alpha=0.3)
+
+    # Fix plot limits
+    epsilon = np.max(amps_pos) * 0.005
+    sig_idx = np.where(amps_pos > epsilon)
+    if len(sig_idx[0]) > 0:
+        max_freq = freqs_pos[sig_idx[0][-1]]
+        buffer = 5 * (1.0 / len(coords))
+        ax_spec.set_xlim(0, max_freq + buffer)
+        ax_spec.set_ylim(0, np.max(amps_pos) * 1.1)
+    else:
+        ax_spec.set_xlim(0, 0.1)
+        ax_spec.set_ylim(0, max(np.max(amps_pos) * 1.1, 1e-4))
+
+    print(f"{planet}: {n_used} epicycle(s) kept")
+    for f0, A in zip(selected_freqs, selected_amps):
+        print(f"  f={f0:.6f} cycles/timestep,  radius={A:.5f} AU")
+
+    # 2) Orbital path
+    ax_fit.plot(x_obs, y_obs, 'o', markersize=2, alpha=0.4, label='Observed')
+    ax_fit.plot(x_fit, y_fit, '-', linewidth=1.2, label=f'Fit ({n_used} epicycles)')
+    ax_fit.plot(0, 0, 'ko', markersize=6, label='Earth')
+    ax_fit.set_title('Orbital Path')
+    ax_fit.set_xlabel('x (AU)')
+    ax_fit.set_ylabel('y (AU)')
+    ax_fit.set_aspect('equal')
+    ax_fit.legend()
+    ax_fit.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.draw()
+    plt.pause(0.001)
+
+plt.show()
+
+# Animation
+fig, ax = plt.subplots(figsize=(8, 8))
+ax.set_xlim(-45, 45)
+ax.set_ylim(-45, 45)
+ax.set_aspect('equal')
+ax.grid(True, alpha=0.3)
+ax.set_title('Geocentric Planetary Motion')
+ax.plot(0, 0, 'o', markersize=6, label='Earth')
+
+# 1) Real trajectories
+for planet, data in planet_positions.items():
+    x_real = [p[0] for p in data]
+    y_real = [p[1] for p in data]
+    ax.plot(x_real, y_real, color='black', linestyle=':', linewidth=0.5, alpha=0.4)
+
+# 2) Fitted trajectories
+planet_lines = {planet: ax.plot([], [], '-', linewidth=3, label=f"{planet} (Fit)")[0] for planet in fitted_planet_positions}
+ax.legend(fontsize=7)
+
+def animate(i):
+    for planet, line in planet_lines.items():
+        x_fit, y_fit = fitted_planet_positions[planet]
+        end = min(i, len(x_fit))
+        line.set_data(x_fit[:end], y_fit[:end])
+    return list(planet_lines.values())
+
+max_frames = len(max(planet_positions.values(), key=len))
+ani = FuncAnimation(fig, animate, frames=max_frames, interval=5, blit=True)
+plt.show()
