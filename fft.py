@@ -67,7 +67,6 @@ def fft_epicycles(coords, max_n, pad_factor=8, overlap_bins=2):
         f0 = freqs_pos[idx]
         too_close = any(abs(f0 - kf) < overlap_threshold for kf in kept_freqs)
         if not too_close:
-            kept_indices.append(idx)
             kept_freqs.append(f0)
         if len(kept_freqs) == max_n:
             break
