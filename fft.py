@@ -174,17 +174,25 @@ for planet, data in planet_positions.items():
     y_real = [p[1] for p in data]
     ax.plot(x_real, y_real, color='black', linestyle=':', linewidth=0.5, alpha=0.4)
 
-# 2) Fitted trajectories
-planet_lines = {planet: ax.plot([], [], '-', linewidth=3, label=f"{planet} (Fit)")[0] for planet in fitted_planet_positions}
+# 2) Fitted trajectories: full path drawn once (faint), then a moving dot + short trail
+trail_length = 200  # in days
+planet_dots = {}
+planet_trails = {}
+for planet, (x_fit, y_fit) in fitted_planet_positions.items():
+    path = ax.plot(x_fit, y_fit, '-', linewidth=0.8, alpha=0.25)[0]
+    color = path.get_color()
+    planet_trails[planet] = ax.plot([], [], '-', linewidth=2, color=color)[0]
+    planet_dots[planet] = ax.plot([], [], 'o', markersize=5, color=color, label=f"{planet} (Fit)")[0]
 ax.legend(fontsize=7)
 
 def animate(i):
-    for planet, line in planet_lines.items():
+    for planet in planet_dots:
         x_fit, y_fit = fitted_planet_positions[planet]
-        end = min(i, len(x_fit))
-        line.set_data(x_fit[:end], y_fit[:end])
-    return list(planet_lines.values())
+        start = max(0, i - trail_length)
+        planet_trails[planet].set_data(x_fit[start:i + 1], y_fit[start:i + 1])
+        planet_dots[planet].set_data([x_fit[i]], [y_fit[i]])
+    return list(planet_trails.values()) + list(planet_dots.values())
 
-max_frames = len(max(planet_positions.values(), key=len))
+max_frames = min(len(v[0]) for v in fitted_planet_positions.values())
 ani = FuncAnimation(fig, animate, frames=max_frames, interval=5, blit=True)
 plt.show()
