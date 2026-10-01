@@ -18,44 +18,60 @@ with open("kepler_planetary_positions.txt", "r") as f:
                 x, y = float(coords[0]), float(coords[1])
                 planet_positions[current_planet].append((x, y)) # coordinates
 
+# Earth is the origin in the geocentric frame (all zeros), so don't fit it
+planet_positions.pop('Earth', None)
+
 # User input
-max_epicycles = int(input("How many epicycles?: "))
+while True:
+    try:
+        max_epicycles = int(input("How many epicycles?: "))
+        if max_epicycles >= 1:
+            break
+        print("Please enter a positive integer.")
+    except ValueError:
+        print("Please enter a whole number (e.g. 5).")
 
 # Fast Fourier Transform
-def fft_epicycles(coords, max_n, pad_factor=8, overlap_bins=50):
+def fft_epicycles(coords, max_n, pad_factor=8, overlap_bins=2):
     # Map coordinates to complex plane
     z = np.array([x + 1j * y for x, y in coords])
     N = len(z)
-    bandwidth = 1.0 / N
+    bandwidth = 1.0 / N  # one FFT bin of the unpadded signal
     overlap_threshold = overlap_bins * bandwidth
 
-    # Zero-pad and FFT
-    Z = np.fft.fft(z, n=N * pad_factor)
+    # Remove the mean (DC term) so it can't leak into low-frequency peaks
+    z_mean = z.mean()
+    z_centered = z - z_mean
+
+    # Hann window suppresses sidelobes, so they don't show up as fake peaks
+    window = np.hanning(N)
+
+    # Zero-pad and FFT (used only to locate frequencies)
+    Z = np.fft.fft(z_centered * window, n=N * pad_factor)
     freqs = np.fft.fftfreq(N * pad_factor)
-    amplitudes = np.abs(Z / N)  # normalise by original N
+    amplitudes = np.abs(Z) / np.sum(window)  # window-corrected, approx. radius in AU
 
     # Positive frequencies only
     pos_mask = (freqs > 0)
     freqs_pos = freqs[pos_mask]
     amps_pos  = amplitudes[pos_mask]
-    Z_pos     = Z[pos_mask]
 
     # Find peaks
     min_amp = np.max(amps_pos) * 0.01  # only picks local maxima above 1% of tallest peak
     peak_indices, _ = find_peaks(amps_pos, height=min_amp)
     peak_indices = peak_indices[np.argsort(amps_pos[peak_indices])[::-1]]
 
-    # Discard sidelobe peaks (within overlap_threshold of a taller kept peak)
-    kept_indices = []
-    kept_freqs   = []
+    # Discard peaks within overlap_threshold of a taller kept peak
+    kept_freqs = []
     for idx in peak_indices:
         f0 = freqs_pos[idx]
         too_close = any(abs(f0 - kf) < overlap_threshold for kf in kept_freqs)
         if not too_close:
             kept_indices.append(idx)
             kept_freqs.append(f0)
-        if len(kept_indices) == max_n:
+        if len(kept_freqs) == max_n:
             break
+    kept_freqs = np.array(kept_freqs)
 
     # Reconstruct
     t = np.arange(N)
@@ -72,9 +88,9 @@ def fft_epicycles(coords, max_n, pad_factor=8, overlap_bins=50):
 
     return {
         "spectrum":       (freqs_pos, amps_pos),
-        "selected":       (np.array(selected_freqs), np.array(selected_amps)),
+        "selected":       (selected_freqs, selected_amps),
         "reconstruction": (z_fit.real, z_fit.imag),
-        "n_found":        len(kept_indices)
+        "n_found":        len(kept_freqs)
     }
 
 fitted_planet_positions = {}
@@ -106,7 +122,7 @@ for planet, coords in planet_positions.items():
         ax_spec.plot(f0, A, marker='o', color='darkred', markersize=6)
 
     ax_spec.set_title('Frequency Spectrum')
-    ax_spec.set_xlabel('Frequency (cycles / timestep)')
+    ax_spec.set_xlabel('Frequency (cycles / day)')
     ax_spec.set_ylabel('Amplitude (AU)')
     ax_spec.legend(fontsize=8)
     ax_spec.grid(True, alpha=0.3)
@@ -125,7 +141,7 @@ for planet, coords in planet_positions.items():
 
     print(f"{planet}: {n_used} epicycle(s) kept")
     for f0, A in zip(selected_freqs, selected_amps):
-        print(f"  f={f0:.6f} cycles/timestep,  radius={A:.5f} AU")
+        print(f"  f={f0:.6f} cycles/day (period {1 / (f0 * 365):.3f} yr),  radius={A:.5f} AU")
 
     # 2) Orbital path
     ax_fit.plot(x_obs, y_obs, 'o', markersize=2, alpha=0.4, label='Observed')
@@ -146,8 +162,8 @@ plt.show()
 
 # Animation
 fig, ax = plt.subplots(figsize=(8, 8))
-ax.set_xlim(-45, 45)
-ax.set_ylim(-45, 45)
+ax.set_xlim(-50, 50)
+ax.set_ylim(-50, 50)
 ax.set_aspect('equal')
 ax.grid(True, alpha=0.3)
 ax.set_title('Geocentric Planetary Motion')
