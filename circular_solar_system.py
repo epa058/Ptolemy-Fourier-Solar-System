@@ -51,7 +51,7 @@ orbital_periods = {
 
 # Simulation
 D = 500 # duration in Earth years
-time = np.linspace(0, D, 365*D)
+time = np.arange(365 * D) / 365 # exactly one day per step
 
 positions = {}
 for planet in names:
@@ -91,7 +91,7 @@ for planet, color in colors.items():
 # Standard Solar System
 def update(frame):
     for planet in names:
-        planets[planet].set_data(positions[planet][frame, 0], positions[planet][frame, 1])
+        planets[planet].set_data([positions[planet][frame, 0]], [positions[planet][frame, 1]])
         trail_start = max(0, frame - trail_length)
         trails[planet].set_data(positions[planet][trail_start:frame, 0], positions[planet][trail_start:frame, 1])
     return list(planets.values()) + list(trails.values())
@@ -101,13 +101,13 @@ def update_earth_centered(frame):
     # Calculate the shift needed to center on Earth's position
     shift_x = -positions['Earth'][frame, 0]
     shift_y = -positions['Earth'][frame, 1]
-    sun.set_data(shift_x, shift_y)
+    sun.set_data([shift_x], [shift_y])
 
     for planet in names:
         # Adjust positions relative to Earth's current position
         centered_x = positions[planet][frame, 0] + shift_x
         centered_y = positions[planet][frame, 1] + shift_y
-        planets[planet].set_data(centered_x, centered_y)
+        planets[planet].set_data([centered_x], [centered_y])
 
         trail_start = max(0, frame - trail_length)
         trail_x = positions[planet][trail_start:frame, 0] + shift_x
