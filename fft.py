@@ -72,18 +72,18 @@ def fft_epicycles(coords, max_n, pad_factor=8, overlap_bins=2):
             break
     kept_freqs = np.array(kept_freqs)
 
-    # Reconstruct
+    # Least-squares fit for each circle's radius and phase at the chosen frequencies
+    # (the window distorts FFT amplitudes, so we don't read them off the spectrum)
     t = np.arange(N)
-    z_fit = np.full(N, Z[0] / N, dtype=complex)
+    z_fit = np.full(N, z_mean, dtype=complex)
+    coeffs = np.array([], dtype=complex)
+    if len(kept_freqs) > 0:
+        basis = np.exp(2j * np.pi * np.outer(t, kept_freqs))  # N x n_found
+        coeffs, *_ = np.linalg.lstsq(basis, z_centered, rcond=None)
+        z_fit += basis @ coeffs
 
-    selected_freqs = []
-    selected_amps  = []
-    for idx in kept_indices:
-        f0    = freqs_pos[idx]
-        coeff = Z_pos[idx] / N
-        z_fit += coeff * np.exp(2j * np.pi * f0 * t)
-        selected_freqs.append(f0)
-        selected_amps.append(np.abs(coeff))
+    selected_freqs = kept_freqs
+    selected_amps  = np.abs(coeffs)
 
     return {
         "spectrum":       (freqs_pos, amps_pos),
