@@ -14,7 +14,7 @@
   
   ### Epicycles via FFT
   
-  Planetary motion is treated as a complex signal $z(t) = x(t) + i y(t)$. I apply the FFT to extract dominant frequencies ${f_k}$ and their amplitudes ${A_k}$ via peak detection. Using these, each orbit is reconstructed as a sum of rotating circles
+  Planetary motion is treated as a complex signal $z(t) = x(t) + i y(t)$. I apply the FFT to extract dominant frequencies $\lbrace f_k \rbrace$ and their amplitudes $\lbrace A_k \rbrace$ via peak detection. Using these, each orbit is reconstructed as a sum of rotating circles
   
   $$ z(t) \approx \sum_{k} A_k e^{2 \pi i f_k t}. $$
   
@@ -28,6 +28,7 @@
   
   ## Future Work
   * Add orbital inclination for 3D orbits
+  * Add argument of perihelion and starting mean anomaly (all planets currently start at perihelion on the +x axis)
   * Use real NASA ephemeris data
   * Adaptive, error-based epicycle selection
   * GPU acceleration for longer simulations
