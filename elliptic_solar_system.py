@@ -89,8 +89,11 @@ def elliptic_orbit(t, a, e, T):
     Method: mean anomaly → eccentric anomaly (Kepler) → true anomaly → (r, θ)
     Planets start at perihelion (closest approach) at t=0.
     """
+    # TODO: add argument of perihelion and mean anomaly at epoch for each planet.
+    # Right now every planet starts at perihelion on the +x axis at t=0, so the
+    # initial alignment is artificial (retrograde shapes are fine, dates are not).
     n = 2 * np.pi / T # mean motion
-    M = n * t # mean anomaly
+    M = (n * t) % (2 * np.pi) # mean anomaly, wrapped to [0, 2pi)
     E = solve_kepler(M, e) # eccentric anomaly
     nu = 2 * np.arctan2(np.sqrt(1 + e) * np.sin(E / 2), np.sqrt(1 - e) * np.cos(E / 2)) # true anomaly
     r = a * (1 - e * np.cos(E)) # heliocentric distance
@@ -98,7 +101,7 @@ def elliptic_orbit(t, a, e, T):
 
 # Simulation
 D = 500 # duration in Earth years
-time = np.linspace(0, D, 365 * D)
+time = np.arange(365 * D) / 365 # exactly one day per step
 
 positions = {}
 for planet in names:
@@ -140,7 +143,7 @@ for planet, color in colors.items():
 # Standard Solar System
 def update(frame):
     for planet in names:
-        planets[planet].set_data(positions[planet][frame, 0], positions[planet][frame, 1])
+        planets[planet].set_data([positions[planet][frame, 0]], [positions[planet][frame, 1]])
         trail_start = max(0, frame - trail_length)
         trails[planet].set_data(positions[planet][trail_start:frame, 0], positions[planet][trail_start:frame, 1])
     return list(planets.values()) + list(trails.values())
@@ -150,13 +153,13 @@ def update_earth_centered(frame):
     # Calculate the shift needed to center on Earth's position
     shift_x = -positions['Earth'][frame, 0]
     shift_y = -positions['Earth'][frame, 1]
-    sun.set_data(shift_x, shift_y)
+    sun.set_data([shift_x], [shift_y])
     
     for planet in names:
         # Adjust positions relative to Earth's current position
         centered_x = positions[planet][frame, 0] + shift_x
         centered_y = positions[planet][frame, 1] + shift_y
-        planets[planet].set_data(centered_x, centered_y)
+        planets[planet].set_data([centered_x], [centered_y])
         
         trail_start = max(0, frame - trail_length)
         trail_x = positions[planet][trail_start:frame, 0] + shift_x
