@@ -1,2 +1,3 @@
-# Generated simulation output (tens of MB)
+# Generated simulation output (can be GBs)
 *positions.txt
+*positions.npz
