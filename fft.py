@@ -31,6 +31,21 @@ while True:
     except ValueError:
         print("Please enter a whole number (e.g. 5).")
 
+# Planet colors
+colors = {
+    'Sun':     'yellow',
+    'Mercury': 'dimgrey',
+    'Venus':   'orange',
+    'Earth':   'blue',
+    'Moon':    'grey',
+    'Mars':    'red',
+    'Jupiter': 'sandybrown',
+    'Saturn':  'wheat',
+    'Uranus':  'paleturquoise',
+    'Neptune': 'dodgerblue',
+    'Pluto':   'tan'
+}
+
 # Fast Fourier Transform
 def fft_epicycles(coords, max_n, pad_factor=8, overlap_bins=2):
     # Map coordinates to complex plane
@@ -166,7 +181,7 @@ ax.set_ylim(-50, 50)
 ax.set_aspect('equal')
 ax.grid(True, alpha=0.3)
 ax.set_title('Geocentric Planetary Motion')
-ax.plot(0, 0, 'o', markersize=6, label='Earth')
+ax.plot(0, 0, 'o', markersize=6, color=colors['Earth'], label='Earth')
 
 # 1) Real trajectories
 for planet, data in planet_positions.items():
@@ -179,8 +194,8 @@ trail_length = 200  # in days
 planet_dots = {}
 planet_trails = {}
 for planet, (x_fit, y_fit) in fitted_planet_positions.items():
-    path = ax.plot(x_fit, y_fit, '-', linewidth=0.8, alpha=0.25)[0]
-    color = path.get_color()
+    color = colors[planet]
+    ax.plot(x_fit, y_fit, '-', linewidth=0.8, alpha=0.25, color=color)
     planet_trails[planet] = ax.plot([], [], '-', linewidth=2, color=color)[0]
     planet_dots[planet] = ax.plot([], [], 'o', markersize=5, color=color, label=f"{planet} (Fit)")[0]
 ax.legend(fontsize=7)
