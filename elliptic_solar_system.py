@@ -217,5 +217,9 @@ with open('kepler_planetary_positions.txt', 'w') as f:
 
 print("Data written to 'kepler_planetary_positions.txt'")
 
+# Binary copy for fft.py: one (N, 2) array of [x, y] per body, keyed by name
+np.savez('kepler_planetary_positions.npz', **relative_positions)
+print("Data written to 'kepler_planetary_positions.npz'")
+
 plt.legend(loc='upper right')
 plt.show()
