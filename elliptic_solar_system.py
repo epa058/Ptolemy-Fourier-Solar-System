@@ -89,9 +89,6 @@ def elliptic_orbit(t, a, e, T):
     Method: mean anomaly → eccentric anomaly (Kepler) → true anomaly → (r, θ)
     Planets start at perihelion (closest approach) at t=0.
     """
-    # TODO: add argument of perihelion and mean anomaly at epoch for each planet.
-    # Right now every planet starts at perihelion on the +x axis at t=0, so the
-    # initial alignment is artificial (retrograde shapes are fine, dates are not).
     n = 2 * np.pi / T # mean motion
     M = (n * t) % (2 * np.pi) # mean anomaly, wrapped to [0, 2pi)
     E = solve_kepler(M, e) # eccentric anomaly
@@ -100,7 +97,7 @@ def elliptic_orbit(t, a, e, T):
     return r * np.cos(nu), r * np.sin(nu)
 
 # Simulation
-D = 500 # duration in Earth years
+D = 10000 # duration in Earth years
 time = np.arange(365 * D) / 365 # exactly one day per step
 
 positions = {}

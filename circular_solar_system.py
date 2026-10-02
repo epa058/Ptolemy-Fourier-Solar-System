@@ -50,7 +50,7 @@ orbital_periods = {
 }
 
 # Simulation
-D = 500 # duration in Earth years
+D = 10000 # duration in Earth years
 time = np.arange(365 * D) / 365 # exactly one day per step
 
 positions = {}
