@@ -1,22 +1,22 @@
+import os
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # no windows: everything is saved to files instead
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+plt.rcParams['agg.path.chunksize'] = 10000  # draw long lines in chunks (the Moon's 10,000-year path overflows Agg otherwise)
+from matplotlib.animation import FFMpegWriter, writers
 from scipy.signal import find_peaks
 
-# File reading
-planet_positions = {}
-current_planet = None
+# Output settings
+output_dir = 'plots'
+os.makedirs(output_dir, exist_ok=True)
+video_fps = 60   # frames per second of the saved animation (1 frame = 1 day)
+save_every = 1   # save every n-th day; 1 = every frame
 
-with open("kepler_planetary_positions.txt", "r") as f:
-    for line in f:
-        if "positions" in line:
-            current_planet = line.split()[0] # name
-            planet_positions[current_planet] = []
-        else:
-            coords = line.strip().split(',')
-            if len(coords) == 2:
-                x, y = float(coords[0]), float(coords[1])
-                planet_positions[current_planet].append((x, y)) # coordinates
+# File reading (binary file written by elliptic_solar_system.py)
+# Each body is an (N, 2) array: column 0 = x, column 1 = y, one row per day
+with np.load("kepler_planetary_positions.npz") as data:
+    planet_positions = {name: data[name] for name in data.files}
 
 # Earth is the origin in the geocentric frame (all zeros), so don't fit it
 planet_positions.pop('Earth', None)
@@ -30,6 +30,21 @@ while True:
         print("Please enter a positive integer.")
     except ValueError:
         print("Please enter a whole number (e.g. 5).")
+
+# How many days (rows) to animate; the FFT fits still use all the data
+total_days = min(len(c) for c in planet_positions.values())
+while True:
+    answer = input(f"How many days to animate? (1-{total_days}, press Enter for all): ").strip()
+    if answer == "":
+        animate_days = total_days
+        break
+    try:
+        animate_days = int(answer)
+        if 1 <= animate_days <= total_days:
+            break
+        print(f"Please enter a number from 1 to {total_days}.")
+    except ValueError:
+        print("Please enter a whole number (e.g. 3650 for 10 years).")
 
 # Planet colors
 colors = {
@@ -49,7 +64,7 @@ colors = {
 # Fast Fourier Transform
 def fft_epicycles(coords, max_n, pad_factor=8, overlap_bins=2):
     # Map coordinates to complex plane
-    z = np.array([x + 1j * y for x, y in coords])
+    z = coords[:, 0] + 1j * coords[:, 1]
     N = len(z)
     bandwidth = 1.0 / N  # one FFT bin of the unpadded signal
     overlap_threshold = overlap_bins * bandwidth
@@ -111,8 +126,8 @@ fitted_planet_positions = {}
 
 # Individual planet plots
 for planet, coords in planet_positions.items():
-    x_obs = np.array([c[0] for c in coords])
-    y_obs = np.array([c[1] for c in coords])
+    x_obs = coords[:, 0]
+    y_obs = coords[:, 1]
 
     res = fft_epicycles(coords, max_epicycles)
     freqs_pos, amps_pos = res["spectrum"]
@@ -138,7 +153,7 @@ for planet, coords in planet_positions.items():
     ax_spec.set_title('Frequency Spectrum')
     ax_spec.set_xlabel('Frequency (cycles / day)')
     ax_spec.set_ylabel('Amplitude (AU)')
-    ax_spec.legend(fontsize=8)
+    ax_spec.legend(loc='upper right', fontsize=8)
     ax_spec.grid(True, alpha=0.3)
 
     # Fix plot limits
@@ -165,50 +180,87 @@ for planet, coords in planet_positions.items():
     ax_fit.set_xlabel('x (AU)')
     ax_fit.set_ylabel('y (AU)')
     ax_fit.set_aspect('equal')
-    ax_fit.legend()
+    ax_fit.legend(loc='upper right')
     ax_fit.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.draw()
-    plt.pause(0.001)
-
-plt.show()
+    plot_path = os.path.join(output_dir, f'{planet}_fft_{max_epicycles}_epicycles.png')
+    fig.savefig(plot_path, dpi=150)
+    plt.close(fig)  # free memory
+    print(f"Saved {plot_path}")
 
 # Animation
-fig, ax = plt.subplots(figsize=(8, 8))
-ax.set_xlim(-50, 50)
-ax.set_ylim(-50, 50)
-ax.set_aspect('equal')
-ax.set_facecolor('black')
-ax.grid(True, color='grey', alpha=0.3)
-ax.set_title('Geocentric Planetary Motion')
-ax.plot(0, 0, 'o', markersize=6, color=colors['Earth'], label='Earth')
+# Find ffmpeg (needed to write .mp4); fall back to the imageio-ffmpeg package if installed
+if not writers.is_available('ffmpeg'):
+    try:
+        import imageio_ffmpeg
+        plt.rcParams['animation.ffmpeg_path'] = imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError:
+        pass
 
-# 1) Real trajectories
-for planet, data in planet_positions.items():
-    x_real = [p[0] for p in data]
-    y_real = [p[1] for p in data]
-    ax.plot(x_real, y_real, color='lightgrey', linestyle=':', linewidth=0.5, alpha=0.4)
+if not writers.is_available('ffmpeg'):
+    print("ffmpeg not found, so the animation was not saved. "
+          "Install ffmpeg or run: pip install imageio-ffmpeg")
+else:
+    dpi = 100
+    fig, ax = plt.subplots(figsize=(8, 8), dpi=dpi)
+    ax.set_xlim(-50, 50)
+    ax.set_ylim(-50, 50)
+    ax.set_aspect('equal')
+    ax.set_facecolor('black')
+    ax.grid(True, color='grey', alpha=0.3)
+    ax.set_title('Geocentric Planetary Motion')
+    ax.plot(0, 0, 'o', markersize=6, color=colors['Earth'], label='Earth')
 
-# 2) Fitted trajectories: full path drawn once (faint), then a moving dot + short trail
-trail_length = 200  # in days
-planet_dots = {}
-planet_trails = {}
-for planet, (x_fit, y_fit) in fitted_planet_positions.items():
-    color = colors[planet]
-    ax.plot(x_fit, y_fit, '-', linewidth=0.8, alpha=0.25, color=color)
-    planet_trails[planet] = ax.plot([], [], '-', linewidth=2, color=color)[0]
-    planet_dots[planet] = ax.plot([], [], 'o', markersize=5, color=color, label=f"{planet} (Fit)")[0]
-ax.legend(fontsize=7)
+    static_artists = []
 
-def animate(i):
-    for planet in planet_dots:
-        x_fit, y_fit = fitted_planet_positions[planet]
-        start = max(0, i - trail_length)
-        planet_trails[planet].set_data(x_fit[start:i + 1], y_fit[start:i + 1])
-        planet_dots[planet].set_data([x_fit[i]], [y_fit[i]])
-    return list(planet_trails.values()) + list(planet_dots.values())
+    # 1) Real trajectories (only the animated days)
+    for planet, data in planet_positions.items():
+        x_real = data[:animate_days, 0]
+        y_real = data[:animate_days, 1]
+        static_artists += ax.plot(x_real, y_real, color='lightgrey', linestyle=':', linewidth=0.5, alpha=0.4)
 
-max_frames = min(len(v[0]) for v in fitted_planet_positions.values())
-ani = FuncAnimation(fig, animate, frames=max_frames, interval=5, blit=True)
-plt.show()
+    # 2) Fitted trajectories: full path drawn once (faint), then a moving dot + short trail
+    trail_length = 200  # in days
+    planet_dots = {}
+    planet_trails = {}
+    for planet, (x_fit, y_fit) in fitted_planet_positions.items():
+        color = colors[planet]
+        static_artists += ax.plot(x_fit[:animate_days], y_fit[:animate_days], '-', linewidth=0.8, alpha=0.25, color=color)
+        planet_trails[planet] = ax.plot([], [], '-', linewidth=2, color=color)[0]
+        planet_dots[planet] = ax.plot([], [], 'o', markersize=5, color=color, label=f"{planet} (Fit)")[0]
+    legend = ax.legend(loc='upper right', fontsize=7)
+
+    # Speed-up: the full paths are millions of points, and saving redraws everything every frame.
+    # So render the static parts once into an image, remove them, and use that image as the background.
+    fig.canvas.draw()
+    background = np.asarray(fig.canvas.buffer_rgba()).copy()
+    for artist in static_artists:
+        artist.remove()
+    legend.set_visible(False)
+    ax.patch.set_visible(False)
+    ax.axis('off')
+    fig.patch.set_visible(False)
+    fig.figimage(background, 0, 0, origin='upper', zorder=-1)
+
+    def animate(i):
+        for planet in planet_dots:
+            x_fit, y_fit = fitted_planet_positions[planet]
+            start = max(0, i - trail_length)
+            planet_trails[planet].set_data(x_fit[start:i + 1], y_fit[start:i + 1])
+            planet_dots[planet].set_data([x_fit[i]], [y_fit[i]])
+
+    frames = range(0, animate_days, save_every)
+    video_path = os.path.join(output_dir, f'geocentric_{max_epicycles}_epicycles_{animate_days}_days.mp4')
+    progress_every = 5000  # print a progress message every this many frames
+
+    print(f"Saving animation ({len(frames)} frames) to {video_path}...")
+    writer = FFMpegWriter(fps=video_fps)
+    with writer.saving(fig, video_path, dpi=dpi):  # dpi must match the figure's for the background to line up
+        for n, i in enumerate(frames, start=1):
+            animate(i)
+            writer.grab_frame()
+            if n % progress_every == 0:
+                print(f"  {n}/{len(frames)} frames ({100 * n / len(frames):.1f}%)")
+    plt.close(fig)
+    print(f"Saved {video_path}")
