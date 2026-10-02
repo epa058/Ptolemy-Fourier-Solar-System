@@ -169,5 +169,5 @@ with open('planetary_positions.txt', 'w') as f:
 print("Data has been written to 'planetary_positions.txt'")
 
 
-plt.legend()
+plt.legend(loc='upper right')
 plt.show()
