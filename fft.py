@@ -187,7 +187,7 @@ ax.plot(0, 0, 'o', markersize=6, color=colors['Earth'], label='Earth')
 for planet, data in planet_positions.items():
     x_real = [p[0] for p in data]
     y_real = [p[1] for p in data]
-    ax.plot(x_real, y_real, color='black', linestyle=':', linewidth=0.5, alpha=0.4)
+    ax.plot(x_real, y_real, color='lightgrey', linestyle=':', linewidth=0.5, alpha=0.4)
 
 # 2) Fitted trajectories: full path drawn once (faint), then a moving dot + short trail
 trail_length = 200  # in days
