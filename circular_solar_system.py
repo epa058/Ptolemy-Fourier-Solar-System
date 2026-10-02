@@ -168,6 +168,10 @@ with open('planetary_positions.txt', 'w') as f:
 
 print("Data has been written to 'planetary_positions.txt'")
 
+# Binary copy: one (N, 2) array of [x, y] per body, keyed by name
+np.savez('planetary_positions.npz', **relative_positions)
+print("Data has been written to 'planetary_positions.npz'")
+
 
 plt.legend(loc='upper right')
 plt.show()
