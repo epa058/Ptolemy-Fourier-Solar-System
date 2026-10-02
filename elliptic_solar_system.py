@@ -217,5 +217,5 @@ with open('kepler_planetary_positions.txt', 'w') as f:
 
 print("Data written to 'kepler_planetary_positions.txt'")
 
-plt.legend()
+plt.legend(loc='upper right')
 plt.show()
