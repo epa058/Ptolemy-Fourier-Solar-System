@@ -2,7 +2,7 @@
   
   I am a geocentrist and believe in the Ptolemaic model of the Solar System.
   
-  This project explores planetary motion from a geocentric perspective and reconstructs Ptolemaic-style epicycles using the Fast Fourier Transform (FFT). For completeness, I also implemented the outdated heliocentric model.
+  This project explores planetary motion from a geocentric perspective and reconstructs Ptolemaic-style epicycles using Fourier analysis and the Fast Fourier Transform (FFT). For completeness, I also implemented the outdated heliocentric model.
   
   ## How does it work?
   
