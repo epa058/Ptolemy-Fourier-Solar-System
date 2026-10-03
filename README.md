@@ -14,11 +14,11 @@
   
   ### Epicycles via FFT
   
-  Planetary motion is treated as a complex signal $z(t) = x(t) + i y(t)$. I apply the FFT to extract dominant frequencies $\lbrace f_k \rbrace$ and their amplitudes $\lbrace A_k \rbrace$ via peak detection. Using these, each orbit is reconstructed as a sum of rotating circles
+  Planetary motion is treated as a complex signal $z(t) = x(t) + i y(t)$. I apply the FFT to identify dominant frequencies $\lbrace f_k \rbrace$ via peak detection, then use a least-squares fit to determine the amplitude and phase $\lbrace C_k \rbrace$ of each corresponding epicycle. Using these, each orbit is reconstructed as a sum of rotating circles
   
-  $$ z(t) \approx \sum_{k} A_k e^{2 \pi i f_k t}. $$
+  $$ z(t) \approx \sum_{k} C_k e^{2 \pi i f_k t}. $$
   
-  This is basically a modern version of deferents and epicycles.
+  This provides a Fourier-analytic formulation of deferents and epicycles.
   
   ### Animation
   
