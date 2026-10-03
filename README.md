@@ -1,4 +1,4 @@
-  # Solar System
+  # Epicycles as Fourier Modes: A Rigorous Reconstruction of the Ptolemaic Model of Planetary Motion
   
   I am a geocentrist and believe in the Ptolemaic model of the Solar System.
   
