@@ -3,7 +3,9 @@
   I am a geocentrist and believe in the Ptolemaic model of the Solar System.
   
   This project explores planetary motion from a geocentric perspective and reconstructs Ptolemaic-style epicycles using Fourier analysis and the Fast Fourier Transform (FFT). For completeness, I also implemented the outdated heliocentric model.
-  
+
+  https://github.com/user-attachments/assets/7e44abab-11ad-4db8-84f7-28f57c19b2d1
+    
   ## How does it work?
   
   `circular_solar_system.py` is boring, so I will describe `elliptic_solar_system.py` and `fft.py` instead. 
